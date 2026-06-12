@@ -1,6 +1,6 @@
 # 🧠 Second Brain AI — Personal Knowledge Assistant
 
-A production-ready RAG (Retrieval-Augmented Generation) application that turns your documents into a queryable AI knowledge base.
+Second Brain AI is a full-stack Retrieval-Augmented Generation (RAG) application that lets you turn your documents into a searchable AI-powered knowledge base. Upload PDFs or DOCX files, ask questions in natural language, and get answers grounded in your own data rather than relying solely on the model's training.
 
 ---
 
@@ -8,8 +8,8 @@ A production-ready RAG (Retrieval-Augmented Generation) application that turns y
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        SECOND BRAIN AI                               │
-│                                                                       │
+│                        SECOND BRAIN AI                             │
+│                                                                     │
 │  ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌───────────┐  │
 │  │  React   │────▶│ Express  │────▶│ MongoDB  │     │  OpenAI   │  │
 │  │ Frontend │◀────│   API    │     │ Metadata │     │Embeddings │  │
@@ -22,9 +22,13 @@ A production-ready RAG (Retrieval-Augmented Generation) application that turns y
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+The application consists of a React frontend, an Express backend, MongoDB for storing metadata and chat history, and Pinecone as the vector database. OpenAI is used both for generating embeddings and producing context-aware responses.
+
 ---
 
 ## RAG Data Flow
+
+### Upload Pipeline
 
 ```
 UPLOAD FLOW
@@ -46,7 +50,13 @@ Express (multer)  ──▶  Text Extraction (pdf-parse / mammoth)
                                │
                                ▼
                       MongoDB stores metadata + chunk refs
+```
 
+When a file is uploaded, its contents are extracted and split into overlapping chunks to preserve context. Each chunk is converted into embeddings and stored in Pinecone, while metadata and references are maintained in MongoDB.
+
+### Query Pipeline
+
+```
 QUERY FLOW
 ──────────
 User types question
@@ -68,6 +78,8 @@ OpenAI embed query ──▶  Pinecone similarity search (top-5)
                     Sources shown as collapsible citations
 ```
 
+Whenever a user asks a question, the query is embedded and compared with stored vectors. The most relevant chunks are retrieved and supplied to the language model as context, allowing it to generate answers based on the user's documents.
+
 ---
 
 ## Project Structure
@@ -75,80 +87,92 @@ OpenAI embed query ──▶  Pinecone similarity search (top-5)
 ```
 second-brain/
 ├── backend/
-│   ├── server.js                  # Express entry point
+│   ├── server.js
 │   ├── controllers/
-│   │   ├── auth.controller.js     # Register / login / getMe
-│   │   ├── chat.controller.js     # Chat sessions + streaming send
-│   │   └── document.controller.js # Upload + processing pipeline
+│   │   ├── auth.controller.js
+│   │   ├── chat.controller.js
+│   │   └── document.controller.js
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── chat.routes.js
 │   │   └── document.routes.js
 │   ├── services/
-│   │   ├── document.service.js    # Text extraction + chunking
-│   │   ├── embedding.service.js   # OpenAI embeddings
-│   │   ├── pinecone.service.js    # Vector store operations
-│   │   └── rag.service.js         # Full RAG pipeline
+│   │   ├── document.service.js
+│   │   ├── embedding.service.js
+│   │   ├── pinecone.service.js
+│   │   └── rag.service.js
 │   ├── models/
 │   │   ├── User.js
 │   │   ├── Document.js
 │   │   └── Chat.js
 │   ├── middleware/
-│   │   ├── auth.middleware.js     # JWT protection
-│   │   └── error.middleware.js    # Central error handler
+│   │   ├── auth.middleware.js
+│   │   └── error.middleware.js
 │   └── .env.example
 │
 └── frontend/
     └── src/
-        ├── App.js                 # Router + protected routes
-        ├── store/index.js         # Zustand (auth + chat + docs)
-        ├── services/api.js        # Axios instance
+        ├── App.js
+        ├── store/index.js
+        ├── services/api.js
         └── components/
-            ├── auth/AuthPage.jsx  # Login / register
+            ├── auth/AuthPage.jsx
             ├── layout/
-            │   ├── AppLayout.jsx  # Shell
-            │   └── Sidebar.jsx    # Chat history + navigation
+            │   ├── AppLayout.jsx
+            │   └── Sidebar.jsx
             ├── chat/
-            │   ├── ChatWindow.jsx # Message list + header
-            │   ├── ChatMessage.jsx# Markdown + sources
-            │   ├── ChatInput.jsx  # Textarea + send
-            │   └── EmptyState.jsx # Suggested prompts
+            │   ├── ChatWindow.jsx
+            │   ├── ChatMessage.jsx
+            │   ├── ChatInput.jsx
+            │   └── EmptyState.jsx
             └── upload/
-                ├── DocumentsPanel.jsx # Library + upload
-                ├── FileDropzone.jsx   # Drag-and-drop
-                └── DocumentCard.jsx   # Document status card
+                ├── DocumentsPanel.jsx
+                ├── FileDropzone.jsx
+                └── DocumentCard.jsx
 ```
+
+The project follows a clean separation of concerns. Controllers handle requests, services contain business logic, models define database schemas, and middleware manages authentication and error handling.
 
 ---
 
 ## Setup Instructions
 
 ### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- OpenAI API key
-- Pinecone account
+
+Before running the project, make sure you have:
+
+* Node.js 18+
+* MongoDB (local or Atlas)
+* OpenAI API key
+* Pinecone account
+
+---
 
 ### 1. Create a Pinecone Index
 
-1. Go to [app.pinecone.io](https://app.pinecone.io)
-2. Create a new index with:
-   - **Name:** `second-brain`
-   - **Dimensions:** `1536`
-   - **Metric:** `cosine`
-   - **Cloud/Region:** any (e.g. AWS us-east-1)
+Create a new Pinecone index with the following configuration:
 
-### 2. Configure the Backend
+* **Name:** `second-brain`
+* **Dimensions:** `1536`
+* **Metric:** `cosine`
+* **Region:** Any region of your choice
+
+---
+
+### 2. Backend Setup
 
 ```bash
 cd backend
 cp .env.example .env
-# Fill in your actual keys in .env
 npm install
 npm run dev
 ```
 
-### 3. Configure the Frontend
+Fill in your API keys inside `.env`.
+
+---
+
+### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -156,15 +180,13 @@ npm install
 npm start
 ```
 
-The frontend proxies `/api` to `http://localhost:5000` via the `proxy` field in `package.json`.
+The frontend proxies `/api` requests to `http://localhost:5000`.
 
 ---
 
 ## Environment Variables
 
 ```env
-# backend/.env
-
 PORT=5000
 CLIENT_URL=http://localhost:3000
 NODE_ENV=development
@@ -181,45 +203,64 @@ PINECONE_INDEX_NAME=second-brain
 
 ---
 
-## API Reference
+## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Login, receive JWT |
-| GET | `/api/auth/me` | Get current user |
-| POST | `/api/documents/upload` | Upload & process file |
-| GET | `/api/documents` | List all documents |
-| DELETE | `/api/documents/:id` | Delete document + vectors |
-| POST | `/api/chat/send` | Send message (SSE stream) |
-| GET | `/api/chat` | List chat sessions |
-| GET | `/api/chat/:id` | Get chat with messages |
-| DELETE | `/api/chat/:id` | Delete chat session |
-
----
-
-## How RAG Works
-
-**Retrieval-Augmented Generation** grounds LLM responses in your actual documents:
-
-1. **Chunking** — Documents are split into ~500-token overlapping segments. Overlap preserves context at chunk boundaries.
-
-2. **Embedding** — Each chunk is converted to a 1536-dimensional vector using OpenAI's `text-embedding-3-small`. Semantically similar text produces similar vectors.
-
-3. **Storage** — Vectors live in Pinecone (per-user namespace). Metadata (document name, chunk text) is stored in MongoDB for quick retrieval.
-
-4. **Retrieval** — When you ask a question, it's also embedded and compared to all stored vectors using cosine similarity. The top 5 most relevant chunks are returned.
-
-5. **Generation** — The retrieved chunks are injected into the LLM's context window as grounding material. The model is instructed to answer only from this context, preventing hallucination.
-
-6. **Streaming** — Responses stream token-by-token via Server-Sent Events for a real-time feel.
+| Method | Endpoint                | Description                      |
+| ------ | ----------------------- | -------------------------------- |
+| POST   | `/api/auth/register`    | Create account                   |
+| POST   | `/api/auth/login`       | Login                            |
+| GET    | `/api/auth/me`          | Get current user                 |
+| POST   | `/api/documents/upload` | Upload and process files         |
+| GET    | `/api/documents`        | Fetch documents                  |
+| DELETE | `/api/documents/:id`    | Remove documents and vectors     |
+| POST   | `/api/chat/send`        | Send message and stream response |
+| GET    | `/api/chat`             | List chat sessions               |
+| GET    | `/api/chat/:id`         | Retrieve chat messages           |
+| DELETE | `/api/chat/:id`         | Delete chat session              |
 
 ---
 
-## Key Design Decisions
+## How Retrieval-Augmented Generation Works
 
-- **Memory storage (multer)** — Files aren't written to disk; buffers are processed directly, keeping the server stateless.
-- **Async document processing** — Upload returns immediately (202 Accepted); the pipeline runs in the background. The frontend polls for status.
-- **Per-user Pinecone namespaces** — Total isolation between users' vector stores.
-- **Conversation history** — Last 6 messages are included in each LLM call for multi-turn coherence without exceeding context limits.
-- **Relevance threshold** — Matches below 0.3 cosine similarity are filtered out to avoid irrelevant citations.
+Instead of relying only on the language model's built-in knowledge, the application grounds responses in the user's own documents.
+
+1. **Chunking**
+
+   Documents are divided into overlapping chunks of roughly 500 tokens. The overlap helps preserve context between neighboring sections.
+
+2. **Embedding**
+
+   Every chunk is converted into a 1536-dimensional vector using OpenAI's `text-embedding-3-small` model.
+
+3. **Storage**
+
+   Vectors are stored inside Pinecone using user-specific namespaces, while MongoDB stores document metadata and references.
+
+4. **Retrieval**
+
+   User queries are embedded and compared against stored vectors. The top matching chunks are retrieved based on cosine similarity.
+
+5. **Generation**
+
+   Retrieved chunks are injected into the prompt along with recent conversation history, allowing the model to answer using relevant information.
+
+6. **Streaming**
+
+   Responses are streamed token-by-token through Server-Sent Events, providing a responsive chat experience.
+
+---
+
+## Design Choices
+
+* **In-memory uploads with Multer** keep the server stateless and avoid unnecessary disk usage.
+* **Background processing** allows uploads to return immediately while indexing continues asynchronously.
+* **User-specific Pinecone namespaces** ensure complete separation between users.
+* **Recent chat history** is included in each request to support multi-turn conversations.
+* **Similarity threshold filtering** helps remove weak matches and prevents irrelevant citations.
+* **SSE streaming** delivers responses in real time, making the application feel interactive and responsive.
+
+---
+
+## Motivation
+
+Second Brain AI was built to solve a simple problem: information is often scattered across PDFs, notes, and documents, making it difficult to find answers quickly. By combining vector search with large language models, the project creates a personal knowledge assistant capable of understanding and retrieving information from your own data.
